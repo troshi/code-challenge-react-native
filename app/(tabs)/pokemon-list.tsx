@@ -2,9 +2,11 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { fetchPokemonDetail, fetchPokemonList } from "@/services/pokemon-api";
 import { Pokemon } from "@/types/pokemon";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Animated,
     FlatList,
     Image,
     Modal,
@@ -35,10 +37,27 @@ export default function PokemonListScreen() {
   const [selectedPokemon, setSelectedPokemon] =
     useState<PokemonWithImage | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const spinValue = new Animated.Value(0);
 
   useEffect(() => {
     loadPokemon(true);
   }, []);
+
+  useEffect(() => {
+    if (refreshing) {
+      const animation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      );
+      animation.start();
+      return () => animation.stop();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [refreshing]);
 
   const loadPokemon = async (reset: boolean = false) => {
     try {
@@ -202,6 +221,28 @@ export default function PokemonListScreen() {
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.5}
       />
+
+      {/* Floating Refresh Button */}
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={onRefresh}
+        disabled={refreshing}
+      >
+        <Animated.View
+          style={{
+            transform: [
+              {
+                rotate: spinValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0deg", "360deg"],
+                }),
+              },
+            ],
+          }}
+        >
+          <MaterialIcons name="refresh" size={24} color="black" />
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* Pokemon Detail Modal */}
       <Modal
@@ -371,6 +412,22 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     opacity: 0.7,
+  },
+  floatingButton: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#007AFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   modalContainer: {
     flex: 1,
